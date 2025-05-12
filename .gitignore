@@ -1,0 +1,8 @@
+# Ignore specific directories
+/ignore/
+/tmp/
+
+# Ignore specific files
+TODO.txt
+.DS_Store
+.solargraph.yml
