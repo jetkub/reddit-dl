@@ -1,13 +1,19 @@
 #!/usr/bin/env ruby
 
+# frozen_string_literal: true
+
 require 'json'
 require 'open-uri'
 require 'nokogiri'
+require 'optparse'
+require 'fileutils'
 
 class RedditVideoDownloader
-  def initialize(url)
+  def initialize(url, options = {})
     @url = url
     check_ffmpeg
+    @output_dir = ensure_path_exists(options[:path] ||
+      File.expand_path('~/Downloads'))
   end
 
   def download
@@ -38,7 +44,7 @@ class RedditVideoDownloader
     URI.open(audio_url) { |f| File.write('temp_audio.mp4', f.read) }
 
     # Combine files
-    output_file = "reddit_video_#{Time.now.to_i}.mp4"
+    output_file = File.join(@output_dir, "reddit_video_#{Time.now.to_i}.mp4")
     system('ffmpeg', '-i', 'temp_video.mp4', '-i', 'temp_audio.mp4', '-c:v', 'copy',
            '-c:a', 'aac', output_file, '-y', %i[out err] => File::NULL)
     # Cleanup
@@ -51,6 +57,26 @@ class RedditVideoDownloader
 
   private
 
+  def ensure_path_exists(path)
+    expanded_path = File.expand_path(path)
+
+    unless Dir.exist?(expanded_path)
+      begin
+        FileUtils.mkdir_p(expanded_path)
+      rescue StandardError => e
+        puts "Error creating directory: #{e.message}"
+        exit 1
+      end
+    end
+
+    unless File.writable?(expanded_path)
+      puts "Error: Directory #{expanded_path} is not writable."
+      exit 1
+    end
+
+    expanded_path
+  end
+
   def check_ffmpeg
     # This conditon will return a success code (0) if it is installed (echo $?),
     # and therefore this function will early return. Behold, a guard clause!
@@ -62,10 +88,27 @@ class RedditVideoDownloader
   end
 end
 
+cli_options = {}
+OptionParser.new do |parser|
+  parser.banner = "Usage: #{$PROGRAM_NAME} [options] <reddit-post-url>"
+
+  parser.on('-p PATH', '--path=PATH',
+            'Select output directory (default: ~/Downloads)') do |p|
+    cli_options[:path] = p
+  end
+
+  parser.on('-h', '--help', 'Show this help message') do
+    puts parser
+    exit
+  end
+end.parse!
+
 # Usage
 if ARGV.empty?
-  puts "Usage: #{$0} <reddit-post-url>"
+  puts "Usage: #{$PROGRAM_NAME} <reddit-post-url>"
   exit 1
 end
 
-RedditVideoDownloader.new(ARGV[0]).download
+# Create downloader instance and download video
+rvd = RedditVideoDownloader.new(ARGV[0], cli_options)
+rvd.download
