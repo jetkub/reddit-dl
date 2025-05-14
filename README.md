@@ -14,3 +14,6 @@ You will need ruby installed. There is also one dependency that is not part of t
 ```
 gem install nokigiri
 ```
+
+## Limitations
+This script will not download videos from Reddit posts in which the video is not hosted on Reddit (v.redd.it). Video hosts such as imgur.com are not (yet?) supported.
